@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id        Int       @id @default(autoincrement())
+  name      String
+  phone     String    @unique
+  email     String?
+  address   String?
+  vehicles  Vehicle[]
+  createdAt DateTime  @default(now())
+}
+
+model Vehicle {
+  id          Int       @id @default(autoincrement())
+  plateNumber String    @unique
+  make        String
+  model       String
+  year        Int?
+  mileage     Int
+  customerId  Int
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  jobCards    JobCard[]
+  createdAt   DateTime  @default(now())
+}
+
+model InventoryItem {
+  id            Int       @id @default(autoincrement())
+  sku           String    @unique
+  name          String
+  category      String
+  quantity      Int
+  buyPrice      Float
+  sellPrice     Float
+  minStockLevel Int       @default(5)
+  jobParts      JobPart[]
+  updatedAt     DateTime  @updatedAt
+}
+
+model JobCard {
+  id               Int       @id @default(autoincrement())
+  jobNumber        String    @unique
+  vehicleId        Int
+  vehicle          Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  assignedMechanic String?
+  complaint        String
+  diagnosis        String?
+  status           String    @default("PENDING") // PENDING, IN_PROGRESS, WAITING_PARTS, READY, COMPLETED
+  laborCost        Float     @default(0)
+  partsTotal       Float     @default(0)
+  totalCost        Float     @default(0)
+  partsUsed        JobPart[]
+  invoice          Invoice?
+  createdAt        DateTime  @default(now())
+  completedAt      DateTime?
+}
+
+model JobPart {
+  id              Int           @id @default(autoincrement())
+  jobCardId       Int
+  jobCard         JobCard       @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  inventoryItemId Int
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  quantity        Int
+  unitPrice       Float
+}
+
+model Invoice {
+  id            Int      @id @default(autoincrement())
+  invoiceNumber String   @unique
+  jobCardId     Int      @unique
+  jobCard       JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  subtotal      Float
+  discount      Float    @default(0)
+  tax           Float    @default(0)
+  grandTotal    Float
+  paymentMethod String   @default("CASH") // CASH, CARD, BANK_TRANSFER
+  paymentStatus String   @default("UNPAID") // UNPAID, PARTIAL, PAID
+  paidAmount    Float    @default(0)
+  createdAt     DateTime @default(now())
+}

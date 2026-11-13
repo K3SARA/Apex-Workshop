@@ -1,0 +1,122 @@
+Build a complete, production-ready full-stack **Garage Workshop Management System** in this workspace. Execute this end-to-end: scaffold the project, set up the database and seed data, build the backend API, build the frontend UI, start the servers, and verify the full workflow in the browser.
+
+### 1. Tech Stack & Architecture
+- **Monorepo Structure:** `/client` (Frontend) and `/server` (Backend) with a root `package.json` using `concurrently` so `npm run dev` starts both servers cleanly.
+- **Frontend (`/client`):** React (Vite), Tailwind CSS, Lucide React icons, React Router DOM, and Axios.
+- **Backend (`/server`):** Node.js, Express, CORS, Zod (for request validation), and Prisma ORM with SQLite (`dev.db`).
+
+---
+
+### 2. Database Schema (Prisma + SQLite)
+Create `/server/prisma/schema.prisma` with the following models and relations:
+
+1. **Customer**
+   - `id` (Int, autoincrement, PK)
+   - `name` (String)
+   - `phone` (String, unique)
+   - `email` (String, optional)
+   - `address` (String, optional)
+   - `vehicles` (Relation to Vehicle[])
+   - `createdAt` (DateTime, default now)
+
+2. **Vehicle**
+   - `id` (Int, autoincrement, PK)
+   - `plateNumber` (String, unique — e.g., "CAB-4589")
+   - `make` (String — e.g., "Toyota")
+   - `model` (String — e.g., "Axio")
+   - `year` (Int, optional)
+   - `mileage` (Int)
+   - `customerId` (Int, FK -> Customer)
+   - `jobCards` (Relation to JobCard[])
+   - `createdAt` (DateTime, default now)
+
+3. **InventoryItem**
+   - `id` (Int, autoincrement, PK)
+   - `sku` (String, unique)
+   - `name` (String)
+   - `category` (String — e.g., "Oils & Fluids", "Filters", "Brakes", "Engine Parts", "Electrical")
+   - `quantity` (Int)
+   - `buyPrice` (Float)
+   - `sellPrice` (Float)
+   - `minStockLevel` (Int, default 5)
+   - `jobParts` (Relation to JobPart[])
+   - `updatedAt` (DateTime, updatedAt)
+
+4. **JobCard**
+   - `id` (Int, autoincrement, PK)
+   - `jobNumber` (String, unique — auto-generated format like `JOB-1001`)
+   - `vehicleId` (Int, FK -> Vehicle)
+   - `assignedMechanic` (String, optional)
+   - `complaint` (String — customer reported issues)
+   - `diagnosis` (String, optional — mechanic inspection notes)
+   - `status` (String, default "PENDING" — allowed values: `PENDING`, `IN_PROGRESS`, `WAITING_PARTS`, `READY`, `COMPLETED`)
+   - `laborCost` (Float, default 0)
+   - `partsTotal` (Float, default 0)
+   - `totalCost` (Float, default 0)
+   - `partsUsed` (Relation to JobPart[])
+   - `invoice` (Relation to Invoice?)
+   - `createdAt` (DateTime, default now)
+   - `completedAt` (DateTime, optional)
+
+5. **JobPart**
+   - `id` (Int, autoincrement, PK)
+   - `jobCardId` (Int, FK -> JobCard, onDelete: Cascade)
+   - `inventoryItemId` (Int, FK -> InventoryItem)
+   - `quantity` (Int)
+   - `unitPrice` (Float — snapshot of `sellPrice` at time of addition)
+
+6. **Invoice**
+   - `id` (Int, autoincrement, PK)
+   - `invoiceNumber` (String, unique — format `INV-1001`)
+   - `jobCardId` (Int, unique, FK -> JobCard)
+   - `subtotal` (Float)
+   - `discount` (Float, default 0)
+   - `tax` (Float, default 0)
+   - `grandTotal` (Float)
+   - `paymentMethod` (String, default "CASH" — `CASH`, `CARD`, `BANK_TRANSFER`)
+   - `paymentStatus` (String, default "UNPAID" — `UNPAID`, `PARTIAL`, `PAID`)
+   - `paidAmount` (Float, default 0)
+   - `createdAt` (DateTime, default now)
+
+Create and run a seed script (`/server/prisma/seed.js`) that populates:
+- 5 realistic customers and 6 vehicles.
+- 12 common automotive spare parts/consumables (including 2 items intentionally below `minStockLevel` to demonstrate low-stock alerts).
+- 4 job cards across different statuses (`PENDING`, `IN_PROGRESS`, `READY`, `COMPLETED`), with assigned parts and 1 generated invoice.
+
+---
+
+### 3. Backend REST API Requirements (`/server`)
+Implement clean REST endpoints with centralized error handling:
+- **`GET /api/dashboard`**: Returns total active jobs, jobs ready for pickup, today's revenue, total unpaid invoice balance, recent job cards, and low-stock inventory items (`quantity <= minStockLevel`).
+- **`GET/POST/PUT/DELETE /api/customers`** & **`/api/vehicles`**: Support instant search query (`?q=`) matching vehicle `plateNumber`, customer `name`, or `phone`.
+- **`GET/POST/PUT/DELETE /api/inventory`**: Full CRUD plus quick stock restock endpoint (`PATCH /api/inventory/:id/stock`).
+- **`GET/POST/PUT/DELETE /api/jobs`**:
+  - Creating a job card can accept an existing `vehicleId` OR create a new Customer + Vehicle atomically in one transaction.
+  - `POST /api/jobs/:id/parts`: Adds an inventory item to the job card, **atomically deducts stock** from `InventoryItem` (throwing a 400 error if insufficient stock), and recalculates `partsTotal` and `totalCost`.
+  - `DELETE /api/jobs/:id/parts/:partId`: Removes the part from the job card, **restores the stock** back to `InventoryItem`, and recalculates totals.
+  - `PATCH /api/jobs/:id`: Updates status, diagnosis, assignedMechanic, or `laborCost` (recalculating `totalCost`).
+- **`GET/POST/PATCH /api/invoices`**:
+  - `POST /api/invoices`: Generates an invoice from a Job Card (`jobCardId`, `discount`, `tax`), marks the Job Card as `COMPLETED`, and sets `completedAt`.
+  - `PATCH /api/invoices/:id/pay`: Records payment amount and method, automatically updating `paymentStatus` to `PARTIAL` or `PAID`.
+
+---
+
+### 4. Frontend UI & UX Requirements (`/client`)
+Design an **ultra-minimal, high-contrast, Apple-inspired dashboard aesthetic**:
+- Crisp white surfaces (`#FFFFFF`), subtle off-white canvas (`#F8FAFC`), ultra-thin borders (`#E2E8F0`), deep charcoal/black primary actions (`#0F172A`), and clean tabular numerals for all financial and mileage figures.
+- Left collapsible sidebar navigation with clean Lucide icons:
+  1. **Dashboard**: 4 top KPI cards, "Workshop Floor" live status board, and "Low Stock Alerts" quick-action card.
+  2. **Job Cards**: Filterable by status tabs (`All`, `Pending`, `In Progress`, `Waiting Parts`, `Ready`, `Completed`) + Search by plate/job #. Includes:
+     - **"New Job Card" Modal**: Allows searching an existing vehicle by plate number OR quick-registering a new customer & vehicle inline.
+     - **Slide-Over Job Detail Drawer**: Edit diagnosis/mechanic, update status pill, update labor cost, add/remove spare parts from inventory dropdown (showing live stock count), and click **"Generate Invoice"**.
+  3. **Vehicles & Customers**: Searchable directory table. Clicking any vehicle opens its complete **Service History** timeline (past job cards, mileage progression, and total spent).
+  4. **Inventory**: Clean data table with category filter, search, low-stock warning badges, "+ Add Item" modal, and inline `+ / -` quick stock adjustment buttons.
+  5. **Invoices & Billing**: List of all invoices with payment status badges (`PAID`, `PARTIAL`, `UNPAID`), "Record Payment" modal, and a dedicated **Print Invoice View** styled cleanly with `@media print` CSS (hiding sidebar/buttons when printing A4/receipt).
+
+---
+
+### 5. Verification Steps
+After writing all code:
+1. Run Prisma migrations and execute the seed script.
+2. Start both the backend (`http://localhost:5000`) and frontend (`http://localhost:5173`).
+3. Open the running app in the browser, verify there are zero console or network errors, and test the full end-to-end flow: create a new job card -> add a spare part (confirming stock decreases) -> add labor cost -> generate an invoice -> mark it as paid.
