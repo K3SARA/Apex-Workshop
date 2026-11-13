@@ -11,7 +11,7 @@
     "dev:client": "npm run dev --prefix client",
     "install:all": "npm install && npm install --prefix server && npm install --prefix client",
     "build": "npm run build --prefix client && npm run db:generate --prefix server",
-    "start": "node server/src/index.js",
+    "start": "node server/start.js",
     "db:push": "npm run db:push --prefix server",
     "db:seed": "npm run seed --prefix server",
     "railway:migrate": "cd server && npx prisma db push && node prisma/seed.js"
