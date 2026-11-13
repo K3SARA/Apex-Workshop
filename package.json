@@ -17,6 +17,8 @@
     "railway:migrate": "cd server && npx prisma db push && node prisma/seed.js"
   },
   "dependencies": {
-    "concurrently": "^9.1.2"
+    "@prisma/client": "^5.22.0",
+    "concurrently": "^9.1.2",
+    "prisma": "^5.22.0"
   }
 }

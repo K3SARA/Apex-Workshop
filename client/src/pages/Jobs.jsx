@@ -48,6 +48,7 @@ export default function Jobs({ onOpenMobileMenu }) {
   const loadJobs = async () => {
     try {
       setLoading(true);
+      setError('');
       const params = {};
       if (activeTab !== 'ALL') params.status = activeTab;
       if (searchQuery.trim()) params.q = searchQuery.trim();
@@ -55,7 +56,7 @@ export default function Jobs({ onOpenMobileMenu }) {
       const res = await api.get('/jobs', { params });
       setJobs(res.data);
     } catch (err) {
-      setError('Failed to fetch job cards');
+      setError(err.response?.data?.error || err.message || 'Failed to fetch job cards');
     } finally {
       setLoading(false);
     }
@@ -114,8 +115,14 @@ export default function Jobs({ onOpenMobileMenu }) {
         </div>
 
         {error && (
-          <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
-            {error}
+          <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center justify-between">
+            <span>{error}</span>
+            <button
+              onClick={loadJobs}
+              className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium ml-3 shrink-0"
+            >
+              Retry
+            </button>
           </div>
         )}
 

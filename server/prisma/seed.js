@@ -2,6 +2,12 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
+  const existingCount = await prisma.customer.count().catch(() => 0);
+  if (existingCount > 0 && process.env.FORCE_SEED !== 'true') {
+    console.log(`Database already populated (${existingCount} customers). Skipping seed.`);
+    return;
+  }
+
   console.log('Clearing existing database records...');
   await prisma.invoice.deleteMany();
   await prisma.jobPart.deleteMany();

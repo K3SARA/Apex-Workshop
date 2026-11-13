@@ -62,6 +62,7 @@ export default function VehiclesCustomers({ onOpenMobileMenu }) {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError('');
       const params = searchQuery.trim() ? { q: searchQuery.trim() } : {};
       const [vRes, cRes] = await Promise.all([
         api.get('/vehicles', { params }),
@@ -70,7 +71,7 @@ export default function VehiclesCustomers({ onOpenMobileMenu }) {
       setVehicles(vRes.data);
       setCustomers(cRes.data);
     } catch (err) {
-      setError('Failed to fetch vehicles & customers directory');
+      setError(err.response?.data?.error || err.message || 'Failed to fetch vehicles & customers directory');
     } finally {
       setLoading(false);
     }
@@ -189,8 +190,14 @@ export default function VehiclesCustomers({ onOpenMobileMenu }) {
         </div>
 
         {error && (
-          <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
-            {error}
+          <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center justify-between">
+            <span>{error}</span>
+            <button
+              onClick={loadData}
+              className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium ml-3 shrink-0"
+            >
+              Retry
+            </button>
           </div>
         )}
 

@@ -33,13 +33,70 @@ app.use('/api/jobs', jobsRouter);
 app.use('/api/invoices', invoicesRouter);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  let dbStatus = 'disconnected';
+  let stats = null;
+  if (process.env.DATABASE_URL) {
+    try {
+      const prisma = require('./lib/prisma');
+      const [customers, vehicles, items, jobs] = await Promise.all([
+        prisma.customer.count(),
+        prisma.vehicle.count(),
+        prisma.inventoryItem.count(),
+        prisma.jobCard.count()
+      ]);
+      dbStatus = 'connected';
+      stats = { customers, vehicles, items, jobs };
+    } catch (e) {
+      dbStatus = `error: ${e.message}`;
+    }
+  }
+
   res.json({
-    status: 'ok',
+    status: dbStatus === 'connected' ? 'ok' : 'degraded',
     service: 'Garage Workshop Management API',
-    database: process.env.DATABASE_URL ? 'PostgreSQL (configured)' : 'local',
+    database: dbStatus,
+    stats,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
     timestamp: new Date()
   });
+});
+
+// Manual database schema sync trigger (accessible via browser if needed)
+app.get('/api/health/sync', async (req, res) => {
+  if (!process.env.DATABASE_URL) {
+    return res.status(400).json({
+      error: 'DATABASE_URL environment variable is missing in Railway variables.'
+    });
+  }
+
+  try {
+    const { execSync } = require('child_process');
+    const serverDir = path.resolve(__dirname, '..');
+    const syncOutput = execSync('npx prisma db push --accept-data-loss', {
+      cwd: serverDir,
+      encoding: 'utf-8',
+      env: { ...process.env }
+    });
+
+    const seedOutput = execSync('node prisma/seed.js', {
+      cwd: serverDir,
+      encoding: 'utf-8',
+      env: { ...process.env }
+    });
+
+    res.json({
+      success: true,
+      message: 'Database synced and seeded successfully!',
+      syncOutput: syncOutput.trim(),
+      seedOutput: seedOutput.trim()
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: err.message,
+      output: err.stdout || err.stderr
+    });
+  }
 });
 
 // Serve frontend static build if available (production monorepo mode)

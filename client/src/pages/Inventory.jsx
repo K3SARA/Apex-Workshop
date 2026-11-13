@@ -50,6 +50,7 @@ export default function Inventory({ onOpenMobileMenu }) {
   const loadInventory = async () => {
     try {
       setLoading(true);
+      setError('');
       const params = {};
       if (selectedCategory !== 'ALL') params.category = selectedCategory;
       if (searchQuery.trim()) params.q = searchQuery.trim();
@@ -57,7 +58,7 @@ export default function Inventory({ onOpenMobileMenu }) {
       const res = await api.get('/inventory', { params });
       setItems(res.data);
     } catch (err) {
-      setError('Failed to fetch inventory');
+      setError(err.response?.data?.error || err.message || 'Failed to fetch inventory');
     } finally {
       setLoading(false);
     }
@@ -188,8 +189,14 @@ export default function Inventory({ onOpenMobileMenu }) {
         </div>
 
         {error && (
-          <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
-            {error}
+          <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center justify-between">
+            <span>{error}</span>
+            <button
+              onClick={loadInventory}
+              className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium ml-3 shrink-0"
+            >
+              Retry
+            </button>
           </div>
         )}
 
