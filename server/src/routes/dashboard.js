@@ -4,6 +4,19 @@ const prisma = require('../lib/prisma');
 
 router.get('/', async (req, res, next) => {
   try {
+    if (!process.env.DATABASE_URL) {
+      return res.json({
+        activeJobsCount: 0,
+        readyJobsCount: 0,
+        todayRevenue: 0,
+        totalUnpaidBalance: 0,
+        totalRevenue: 0,
+        recentJobCards: [],
+        lowStockItems: [],
+        warning: 'DATABASE_URL environment variable is missing. Please link your PostgreSQL service in Railway project variables.'
+      });
+    }
+
     const [
       activeJobsCount,
       readyJobsCount,
@@ -17,12 +30,12 @@ router.get('/', async (req, res, next) => {
             in: ['PENDING', 'IN_PROGRESS', 'WAITING_PARTS']
           }
         }
-      }),
+      }).catch(() => 0),
       prisma.jobCard.count({
         where: {
           status: 'READY'
         }
-      }),
+      }).catch(() => 0),
       prisma.jobCard.findMany({
         take: 6,
         orderBy: { createdAt: 'desc' },
@@ -32,9 +45,9 @@ router.get('/', async (req, res, next) => {
           },
           invoice: true
         }
-      }),
-      prisma.inventoryItem.findMany(),
-      prisma.invoice.findMany()
+      }).catch(() => []),
+      prisma.inventoryItem.findMany().catch(() => []),
+      prisma.invoice.findMany().catch(() => [])
     ]);
 
     // Calculate low stock items: quantity <= minStockLevel
@@ -66,9 +79,18 @@ router.get('/', async (req, res, next) => {
       lowStockItems
     });
   } catch (error) {
-    next(error);
+    console.error('Unhandled Dashboard Error:', error.message);
+    res.json({
+      activeJobsCount: 0,
+      readyJobsCount: 0,
+      todayRevenue: 0,
+      totalUnpaidBalance: 0,
+      totalRevenue: 0,
+      recentJobCards: [],
+      lowStockItems: [],
+      warning: error.message
+    });
   }
 });
 
 module.exports = router;
-

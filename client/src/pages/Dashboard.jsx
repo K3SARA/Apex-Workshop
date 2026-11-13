@@ -37,10 +37,14 @@ export default function Dashboard({ onOpenMobileMenu }) {
   const loadDashboard = async () => {
     try {
       setLoading(true);
+      setError('');
       const res = await api.get('/dashboard');
       setData(res.data);
+      if (res.data.warning) {
+        setError(res.data.warning);
+      }
     } catch (err) {
-      setError('Failed to load dashboard metrics');
+      setError(err.response?.data?.error || 'Database is connecting. Please ensure DATABASE_URL is set in Railway Variables.');
     } finally {
       setLoading(false);
     }
